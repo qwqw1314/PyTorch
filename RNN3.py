@@ -13,9 +13,8 @@ from torch import optim
 import torch.nn.functional as F
 from konlpy.tag import Hannanum
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-#device = torch.device("cuda")
-#device = torch.device("cpu")
+#device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda")
 
 MAX_LENGTH = 150
 
@@ -70,8 +69,8 @@ def normalizeSentence(s):
             temp = han.nouns(word)
             if(len(temp) > 0):
                 sentence = sentence + temp[0] + ' '
-            #else:
-                #sentence = sentence + han.morphs(word)[0] + ' '
+            else:
+                sentence = sentence + word + ' '
 
         newinputs.append(sentence)
     return newinputs
@@ -82,17 +81,16 @@ def normalizeSentence2(s):
         temp = han.nouns(word)
         if(len(temp) > 0):
             sentence = sentence + temp[0] + ' '
-        #else:
-            #sentence = sentence + han.morphs(word)[0] + ' '
+        else:
+            sentence = sentence + word + ' '
 
     return sentence
 
 def normalizeString(s):
-    hangul = re.compile('[^ ㄱ-ㅣ가-힣 ^☆; ^a-zA-Z.!?/ ^0-9 ^-]+')
+    hangul = re.compile('[^가-힣^a-z^A-Z ^☆; ^.,!?/:~()^0-9 ^-]+')
     result = hangul.sub('', s)
-    #     s = unicodeToAscii(s.lower().strip())
-    #     s = re.sub(r"([.!?])", r" \1", s)
-    #     s = re.sub(r"[^a-zA-Z.!?]+", r" ", s)
+    #s = re.sub(r"([.!?])", r" \1", s)
+    #s = re.sub(r"[^a-zA-Z가-힣.!?]+", r" ", s)
 
     return result
 
@@ -100,11 +98,14 @@ def normalizeString(s):
 def readText():
     print("Reading lines...")
 
-    inputs = open('data/question3.txt', encoding='utf-8').read().strip().split('\n')
-    outputs = open('data/answer3.txt', encoding='utf-8').read().strip().split('\n')
+    inputs = open('data/ques.txt', encoding='utf-8').read().strip().split('\n')
+    outputs = open('data/ans.txt', encoding='utf-8').read().strip().split('\n')
 
     inputs = [normalizeString(s) for s in inputs]
+    #print(inputs)
     outputs = [normalizeString(s) for s in outputs]
+    #print(outputs)
+
     print(len(inputs))
     print(len(outputs))
 
@@ -121,7 +122,7 @@ def readText():
     pair = []
     for i in range(len(inputs)):
         pair.append([inputs[i], outputs[i]])
-        #print(pair[i])
+    print(pair)
     return inp, outp, pair
 
 
@@ -215,7 +216,13 @@ class AttnDecoderRNN(nn.Module):
 
 
 def indexesFromSentence(lang, sentence):
-    return [lang.word2index[word] for word in sentence.split(' ')]
+    arr = []
+    for word in sentence.split(' '):
+        if word in lang.word2index.keys():
+            arr.append(lang.word2index[word])
+        else:
+            continue
+    return arr
 
 
 def tensorFromSentence(lang, sentence):
@@ -230,7 +237,7 @@ def tensorsFromPair(pair):
     return (input_tensor, target_tensor)
 
 
-teacher_forcing_ratio = 0.5
+teacher_forcing_ratio = 0
 
 
 def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion,
@@ -300,7 +307,7 @@ def timeSince(since, percent):
     rs = es - s
     return '%s (- %s)' % (asMinutes(s), asMinutes(rs))
 
-def trainIters(encoder, decoder, n_iters, print_every=1000, plot_every=100, learning_rate=0.005):
+def trainIters(encoder, decoder, n_iters, print_every=1000, plot_every=100, learning_rate=0.01):
     start = time.time()
     print_loss_total = 0
 
@@ -349,7 +356,7 @@ def evaluate(encoder, decoder, sentence, max_length=MAX_LENGTH):
         decoder_attentions[di] = decoder_attention.data
         topv, topi = decoder_output.data.topk(1)
         if topi == EOS_token:
-            #decoded_words.append('<EOS>')
+            decoded_words.append('<EOS>')
             break
         else:
             decoded_words.append(output_lang.index2word[topi.item()])
@@ -375,15 +382,17 @@ def inputsentence(encoder, decoder, sentence):
     print('<', output_sentence)
     return output_sentence
 
-hidden_size = 256
+hidden_size = 100
 encoder1 = EncoderRNN(input_lang.n_words, hidden_size).to(device)
 attn_decoder1 = AttnDecoderRNN(hidden_size, output_lang.n_words, dropout_p=0.1).to(device)
+#decoder1 = DecoderRNN(hidden_size, output_lang.n_words).to(device)
 
-trainIters(encoder1, attn_decoder1, 20000, print_every=100)
+trainIters(encoder1, attn_decoder1, 3000, print_every=10)
+#trainIters(encoder1, decoder1, 10000, print_every=100)
 print("Training complete")
 
 def evaluateSeperately(encoder1, attn_decoder1):
-    for i in range(0, 100):
+    while True:
         sentence = input()
         sentence = normalizeSentence2(sentence)
         out1 = inputsentence(encoder1, attn_decoder1, sentence)
