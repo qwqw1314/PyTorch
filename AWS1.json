@@ -1,0 +1,11 @@
+{
+    "line": "const AWS_KEY = \"AKIALALEMEL33243OLIAE\"",
+    "commit": "eaeffdc65b4c73ccb67e75d96bd8743be2c85973",
+    "offender": "AKIALALEMEL33243OLIA",
+    "reason": "AWS",
+    "commitMsg": "remove fake key",
+    "author": "Zachary Rice \u003czricethezav@users.noreply.github.com\u003e",
+    "file": "main.go",
+    "repo": "gronit",
+    "date": "2018-02-04T19:43:28-06:00"
+}
